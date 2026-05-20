@@ -27,6 +27,7 @@ prev_single_hand_dected = False
 prev_index_on_top = False
 prev_index_tip_pos = None
 prev_hand_count = 0
+prev_mouse_down = False
 
 while True:
     success, img = cap.read()
@@ -41,35 +42,47 @@ while True:
         else:
             single_hand_detected = False
 
-        lms_map = {}
-        for handLms in results.multi_hand_landmarks:
+        lms_map_list = [{} for i in range(hand_count)]
+        for hand_index, handLms in enumerate(results.multi_hand_landmarks):
             for id, lm in enumerate(handLms.landmark):
                 h, w, c = img.shape
                 cx, cy = int(lm.x * w), int(lm.y * h)
-                lms_map[id] = (cx, cy)
+                lms_map_list[hand_index][id] = (cx, cy)
 
             mpDraw.draw_landmarks(img, handLms, mpHands.HAND_CONNECTIONS)
         
-        index_tip_pos = lms_map[8]
-        thump_tip_pos = lms_map[4]
-        middle_tip_pos = lms_map[12]
-        ring_tip_pos = lms_map[16]
-        pinky_tip_pos = lms_map[20]
+        for lms_map in lms_map_list:
+            index_tip_pos = lms_map[8]
+            thump_tip_pos = lms_map[4]
+            middle_tip_pos = lms_map[12]
+            ring_tip_pos = lms_map[16]
+            pinky_tip_pos = lms_map[20]
 
-        index_on_top = (index_tip_pos[1] < thump_tip_pos[1] 
-                        and index_tip_pos[1] < middle_tip_pos[1] 
-                        and index_tip_pos[1] < ring_tip_pos[1] 
-                        and index_tip_pos[1] < pinky_tip_pos[1])
-        
-        if index_on_top:
-            cv2.circle(img, (index_tip_pos[0], index_tip_pos[1]), 10, (255, 0, 0), cv2.FILLED)
+            index_on_top = (index_tip_pos[1] < thump_tip_pos[1] 
+                            and index_tip_pos[1] < middle_tip_pos[1] 
+                            and index_tip_pos[1] < ring_tip_pos[1] 
+                            and index_tip_pos[1] < pinky_tip_pos[1])
+            
+            if index_on_top:
+                cv2.circle(img, (index_tip_pos[0], index_tip_pos[1]), 10, (255, 0, 0), cv2.FILLED)
+                break
 
-        if (index_on_top and single_hand_detected and prev_single_hand_dected 
-            and prev_index_tip_pos != None):
+        if (index_on_top and prev_index_tip_pos != None):
             x_offset = (index_tip_pos[0] - prev_index_tip_pos[0]) * curosor_movement_multiplier
             y_offset = (index_tip_pos[1] - prev_index_tip_pos[1]) * curosor_movement_multiplier
+            if hand_count == 2 and prev_hand_count == 2:
+                if not prev_mouse_down:
+                    pyautogui.mouseDown()
+                    prev_mouse_down = True
+            elif single_hand_detected and prev_single_hand_dected:
+                if prev_mouse_down:
+                    pyautogui.mouseUp()
+                    prev_mouse_down = False
             pyautogui.move(x_offset, y_offset)
-        elif hand_count == 2 and prev_hand_count < 2:
+        elif hand_count == 2 and prev_hand_count < 2 and not index_on_top:
+            if prev_mouse_down:
+                pyautogui.mouseUp()
+                prev_mouse_down = False
             pyautogui.click()
 
         prev_single_hand_dected = single_hand_detected
@@ -82,6 +95,9 @@ while True:
         prev_index_on_top = False
         prev_index_tip_pos = None
         prev_hand_count = 0
+        if prev_mouse_down:
+            pyautogui.mouseUp()
+        prev_mouse_down = False
 
     currTime = time.time()
     fps = 1 / (currTime - prevTime)
