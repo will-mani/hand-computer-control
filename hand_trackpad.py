@@ -74,16 +74,28 @@ while True:
                 if not prev_mouse_down:
                     pyautogui.mouseDown()
                     prev_mouse_down = True
+                pyautogui.move(x_offset, y_offset)
             elif single_hand_detected and prev_single_hand_dected:
                 if prev_mouse_down:
                     pyautogui.mouseUp()
                     prev_mouse_down = False
-            pyautogui.move(x_offset, y_offset)
+                pyautogui.move(x_offset, y_offset)
+            else:
+              if prev_mouse_down:
+                pyautogui.mouseUp()
+                prev_mouse_down = False  
         elif hand_count == 2 and prev_hand_count < 2 and not index_on_top:
             if prev_mouse_down:
                 pyautogui.mouseUp()
                 prev_mouse_down = False
             pyautogui.click()
+        else:
+            if prev_mouse_down:
+                pyautogui.mouseUp()
+                prev_mouse_down = False
+
+        if prev_mouse_down:
+            cv2.circle(img, (index_tip_pos[0], index_tip_pos[1]), 15, (0, 0, 255), cv2.FILLED)
 
         prev_single_hand_dected = single_hand_detected
         prev_index_on_top = index_on_top
