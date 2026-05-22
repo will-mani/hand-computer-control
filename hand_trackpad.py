@@ -10,9 +10,9 @@ def update_multiplier(multipler):
     global curosor_movement_multiplier
     curosor_movement_multiplier = multipler
 
-cv2.namedWindow('Video') 
-cv2.createTrackbar('Multiplier', 'Video', 1, 10, update_multiplier)
-cv2.setTrackbarMin('Multiplier', 'Video', 1)
+cv2.namedWindow('Hand Trackpad') 
+cv2.createTrackbar('Multiplier', 'Hand Trackpad', 1, 10, update_multiplier)
+cv2.setTrackbarMin('Multiplier', 'Hand Trackpad', 1)
 
 cap = cv2.VideoCapture(0)
 
@@ -27,7 +27,7 @@ prev_single_hand_dected = False
 prev_index_on_top = False
 prev_index_tip_pos = None
 prev_hand_count = 0
-prev_mouse_down = False
+is_mouse_down = False
 
 while True:
     success, img = cap.read()
@@ -67,34 +67,25 @@ while True:
                 cv2.circle(img, (index_tip_pos[0], index_tip_pos[1]), 10, (255, 0, 0), cv2.FILLED)
                 break
 
+        if not (index_on_top and prev_index_tip_pos != None and hand_count == 2 and 
+                prev_hand_count == 2):
+            if is_mouse_down:
+                pyautogui.mouseUp()
+                is_mouse_down = False
         if (index_on_top and prev_index_tip_pos != None):
             x_offset = (index_tip_pos[0] - prev_index_tip_pos[0]) * curosor_movement_multiplier
             y_offset = (index_tip_pos[1] - prev_index_tip_pos[1]) * curosor_movement_multiplier
-            if hand_count == 2 and prev_hand_count == 2:
-                if not prev_mouse_down:
+            if single_hand_detected and prev_single_hand_dected:
+                pyautogui.move(x_offset, y_offset)
+            elif hand_count == 2 and prev_hand_count == 2:
+                if not is_mouse_down:
                     pyautogui.mouseDown()
-                    prev_mouse_down = True
+                    is_mouse_down = True
                 pyautogui.move(x_offset, y_offset)
-            elif single_hand_detected and prev_single_hand_dected:
-                if prev_mouse_down:
-                    pyautogui.mouseUp()
-                    prev_mouse_down = False
-                pyautogui.move(x_offset, y_offset)
-            else:
-              if prev_mouse_down:
-                pyautogui.mouseUp()
-                prev_mouse_down = False  
         elif hand_count == 2 and prev_hand_count < 2 and not index_on_top:
-            if prev_mouse_down:
-                pyautogui.mouseUp()
-                prev_mouse_down = False
             pyautogui.click()
-        else:
-            if prev_mouse_down:
-                pyautogui.mouseUp()
-                prev_mouse_down = False
 
-        if prev_mouse_down:
+        if is_mouse_down:
             cv2.circle(img, (index_tip_pos[0], index_tip_pos[1]), 15, (0, 0, 255), cv2.FILLED)
 
         prev_single_hand_dected = single_hand_detected
@@ -107,18 +98,18 @@ while True:
         prev_index_on_top = False
         prev_index_tip_pos = None
         prev_hand_count = 0
-        if prev_mouse_down:
+        if is_mouse_down:
             pyautogui.mouseUp()
-        prev_mouse_down = False
+        is_mouse_down = False
 
     currTime = time.time()
     fps = 1 / (currTime - prevTime)
     prevTime = currTime
 
-    cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
+    cv2.putText(img, str(int(fps)) + 'fps', (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
                 (255, 0, 0), 3)
 
-    cv2.imshow("Video", img)
+    cv2.imshow("Hand Trackpad", img)
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
