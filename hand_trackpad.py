@@ -30,10 +30,16 @@ prev_main_control_hand = None
 is_mouse_down = False
 
 min_secs_since_multiplier_change = 2
-min_secs_till_click = 2 
+min_secs_till_click = 2
 two_hands_for_click_start_time = 0
-min_secs_till_mouse_down = 0.5
+min_secs_till_right_click = 2
+two_hands_for_right_click_start_time = 0
+min_secs_till_double_click = 2 
+two_hands_for_double_click_start_time = 0
+min_secs_till_mouse_down = 2
 two_hands_for_mouse_down_start_time = 0
+min_secs_till_mouse_up = 2
+last_mouse_down_time = 0
 
 class hand():
     def __init__(self, type):
@@ -53,6 +59,7 @@ class hand():
         self.point_left_start_time = 0
 
         self.in_main_control= False
+        self.min_secs_till_contol_loss = 1
         self.last_in_main_control_time = 0
     def is_index_on_top(self):
         if self.index_tip_pos == None:
@@ -99,7 +106,7 @@ class hand():
         return (self.is_index_on_top() or self.is_pointing_right() or self.is_pointing_left())  
     def has_lost_main_control(self):
         time_elapsed = time.time() - self.last_in_main_control_time
-        if time_elapsed > 1:
+        if time_elapsed > self.min_secs_till_contol_loss:
             self.in_main_control = False
             return True
         return False 
@@ -132,11 +139,6 @@ while True:
 
     if results.multi_hand_landmarks != None:
         hand_count = len(results.multi_hand_landmarks)
-        if hand_count == 1:
-            single_hand_detected = True
-        else:
-            single_hand_detected = False
-
         handedness = results.multi_handedness
 
         for hand_index, handLms in enumerate(results.multi_hand_landmarks):
@@ -180,32 +182,53 @@ while True:
             left_hand.in_main_control = False
 
         if main_control_hand == None:
-            if is_mouse_down:
+            time_elapsed = time.time() - last_mouse_down_time
+            if is_mouse_down and time_elapsed > min_secs_till_mouse_up:
+                pyttsx3.speak("Mouse Up")
                 pyautogui.mouseUp()
                 is_mouse_down = False
-                pyttsx3.speak("Mouse Up")
 
         if main_control_hand != None:
             if main_control_hand.is_index_on_top():
+                radius = 10
+                if is_mouse_down:
+                    radius = 15
                 cv2.circle(img, (main_control_hand.index_tip_pos[0], 
-                                 main_control_hand.index_tip_pos[1]), 10, (255, 0, 0), cv2.FILLED)
+                                 main_control_hand.index_tip_pos[1]), radius, (255, 0, 0), 
+                                 cv2.FILLED)
 
             if ((main_control_hand.is_pointing_right() or main_control_hand.is_pointing_left()) 
-                and main_control_hand.type.lower() == "right"):
+                and main_control_hand.type.lower() == "right" and hand_count == 1):
+                radius = 10
+                if is_mouse_down:
+                    radius = 15
                 cv2.circle(img, (main_control_hand.index_tip_pos[0], 
-                                 main_control_hand.index_tip_pos[1]), 10, (0, 255, 0), cv2.FILLED)                    
+                                 main_control_hand.index_tip_pos[1]), radius, (0, 255, 0), 
+                                 cv2.FILLED)   
 
+            if ((main_control_hand.is_pointing_right() or main_control_hand.is_pointing_left()) and 
+                hand_count == 2):
+                radius = 10
+                if is_mouse_down:
+                    radius = 15
+                cv2.circle(img, (main_control_hand.index_tip_pos[0], 
+                                 main_control_hand.index_tip_pos[1]), radius, (0, 0, 255), 
+                                 cv2.FILLED)                 
+
+            # Move Mouse Up
             two_hands_for_mouse_down_time_elapsed = (time.time() - 
                                                      two_hands_for_mouse_down_start_time)
-            if not (hand_count == 2 and main_control_hand.is_index_on_top and 
+            if not (hand_count == 2 and main_control_hand.is_index_on_top() and 
                     prev_hand_count == 2 and main_control_hand.prev_index_on_top and 
                     two_hands_for_mouse_down_time_elapsed > min_secs_till_mouse_down):
-                if is_mouse_down:
+                time_elapsed = time.time() - last_mouse_down_time
+                if is_mouse_down and time_elapsed > min_secs_till_mouse_up:
+                    pyttsx3.speak("Mouse Up")
                     pyautogui.mouseUp()
                     is_mouse_down = False
-                    pyttsx3.speak("Mouse Up")
 
-            if (single_hand_detected and main_control_hand.is_index_on_top() and 
+            # Move Cursor
+            if (hand_count == 1 and main_control_hand.is_index_on_top() and 
                 main_control_hand.prev_index_tip_pos != None):
                 index_tip_pos = main_control_hand.index_tip_pos
                 prev_index_tip_pos = main_control_hand.prev_index_tip_pos
@@ -213,15 +236,18 @@ while True:
                 y_offset = (index_tip_pos[1] - prev_index_tip_pos[1]) * cursor_movement_multiplier
                 pyautogui.move(x_offset, y_offset)
            
-            if hand_count == 2 and main_control_hand.is_index_on_top:
+            # Move Cursor with Mouse Down
+            elif hand_count == 2 and main_control_hand.is_index_on_top():
                 time_elapsed = time.time() - two_hands_for_mouse_down_start_time
                 if (prev_hand_count == 2 and main_control_hand.prev_index_on_top and 
                     time_elapsed > min_secs_till_mouse_down):
                     if not is_mouse_down:
+                        pyttsx3.speak("Mouse Down")
                         pyautogui.mouseDown()
                         is_mouse_down = True
-                        pyttsx3.speak("Mouse Down")
-                elif not (prev_hand_count == 2 and main_control_hand.prev_index_on_top):
+                    last_mouse_down_time = time.time()
+                elif (not (prev_hand_count == 2 and main_control_hand.prev_index_on_top) and 
+                      not is_mouse_down):
                     two_hands_for_mouse_down_start_time = time.time()
                 if (is_mouse_down and main_control_hand.prev_index_tip_pos != None):
                     index_tip_pos = main_control_hand.index_tip_pos
@@ -232,55 +258,76 @@ while True:
                                 cursor_movement_multiplier)
                     pyautogui.move(x_offset, y_offset)
 
+            # Decrease Multiplier
             elif (main_control_hand.is_pointing_right() and 
-                  main_control_hand.type.lower() == "right"):
+                  main_control_hand.type.lower() == "right" and hand_count == 1):
                 time_elapsed =  time.time() - main_control_hand.point_right_start_time
-                if (main_control_hand.prev_pointing_right and 
+                if (main_control_hand.prev_pointing_right and prev_hand_count == 1 and 
                     time_elapsed > min_secs_since_multiplier_change):
                     new_multiplier = cursor_movement_multiplier + 1
                     new_multiplier = max(min(new_multiplier, multiplier_max), multiplier_min)
+                    pyttsx3.speak("Multiplier " + str(new_multiplier))
                     cv2.setTrackbarPos('Multiplier', 'Hand Trackpad', new_multiplier)
-                    pyttsx3.speak("Mouse Multiplier " + str(new_multiplier))
                     main_control_hand.point_right_start_time = time.time()
-                elif not main_control_hand.prev_pointing_right:
+                elif not (main_control_hand.prev_pointing_right and prev_hand_count == 1):
                     main_control_hand.point_right_start_time = time.time()
             
+            # Increase Multiplier
             elif (main_control_hand.is_pointing_left() and 
-                  main_control_hand.type.lower() == "right"):
+                  main_control_hand.type.lower() == "right" and hand_count == 1):
                 time_elapsed =  time.time() - main_control_hand.point_left_start_time
-                if (main_control_hand.prev_pointing_left and 
+                if (main_control_hand.prev_pointing_left and prev_hand_count == 1 and
                     time_elapsed > min_secs_since_multiplier_change):
                     new_multiplier = cursor_movement_multiplier - 1
                     new_multiplier = min(max(new_multiplier, multiplier_min), multiplier_max)
+                    pyttsx3.speak("Multiplier " + str(new_multiplier))
                     cv2.setTrackbarPos('Multiplier', 'Hand Trackpad', new_multiplier)
-                    pyttsx3.speak("Mouse Multiplier " + str(new_multiplier))
                     main_control_hand.point_left_start_time = time.time()
-                elif not main_control_hand.prev_pointing_left:
+                elif not (main_control_hand.prev_pointing_left and prev_hand_count == 1):
                     main_control_hand.point_left_start_time = time.time()
 
+            # Right Click
+            elif (main_control_hand.is_pointing_right() and hand_count == 2):
+                time_elapsed =  time.time() - two_hands_for_right_click_start_time
+                if (main_control_hand.prev_pointing_right and prev_hand_count == 2 and 
+                    time_elapsed > min_secs_till_right_click):
+                    pyttsx3.speak("Right Click")
+                    pyautogui.click(button="right")
+                    two_hands_for_right_click_start_time = time.time()
+                elif not (main_control_hand.prev_pointing_right and prev_hand_count == 2):
+                    two_hands_for_right_click_start_time = time.time()
+
+            # (Left) Click 
+            elif (main_control_hand.is_pointing_left() and hand_count == 2):
+                time_elapsed =  time.time() - two_hands_for_click_start_time
+                if (main_control_hand.prev_pointing_left and prev_hand_count == 2 and
+                    time_elapsed > min_secs_till_click):
+                    pyttsx3.speak("Click")
+                    pyautogui.click()
+                    two_hands_for_click_start_time = time.time()
+                elif not (main_control_hand.prev_pointing_left and prev_hand_count == 2):
+                    two_hands_for_click_start_time = time.time()
+
+        # Double Click
         elif hand_count == 2:
-            time_elapsed = time.time() - two_hands_for_click_start_time
+            time_elapsed = time.time() - two_hands_for_double_click_start_time
             if (prev_hand_count == 2 and prev_main_control_hand == None 
-                and time_elapsed > min_secs_till_click):
-                pyautogui.click()
-                pyttsx3.speak("Click")
-                two_hands_for_click_start_time = time.time()
+                and time_elapsed > min_secs_till_double_click):
+                pyttsx3.speak("Double Click")
+                pyautogui.doubleClick()
+                two_hands_for_double_click_start_time = time.time()
             elif not (prev_hand_count == 2 and prev_main_control_hand == None):
-                two_hands_for_click_start_time = time.time()
-
-
-        if is_mouse_down:
-            cv2.circle(img, (main_control_hand.index_tip_pos[0], 
-                             main_control_hand.index_tip_pos[1]), 15, (0, 0, 255), cv2.FILLED)
+                two_hands_for_double_click_start_time = time.time()
 
         prev_hand_count = hand_count
 
     else:
         prev_hand_count = 0
-        if is_mouse_down:
+        last_mouse_down_time_elapsed = time.time() - last_mouse_down_time
+        if is_mouse_down and last_mouse_down_time_elapsed > min_secs_till_mouse_up:
+            pyttsx3.speak("Mouse Up")
             pyautogui.mouseUp()
             is_mouse_down = False
-            pyttsx3.speak("Mouse Up")
 
         right_hand.has_lost_main_control()
         left_hand.has_lost_main_control()
