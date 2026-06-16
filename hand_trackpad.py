@@ -258,7 +258,7 @@ while True:
                                 cursor_movement_multiplier)
                     pyautogui.move(x_offset, y_offset)
 
-            # Decrease Multiplier
+            # Increase Multiplier
             elif (main_control_hand.is_pointing_right() and 
                   main_control_hand.type.lower() == "right" and hand_count == 1):
                 time_elapsed =  time.time() - main_control_hand.point_right_start_time
@@ -272,7 +272,7 @@ while True:
                 elif not (main_control_hand.prev_pointing_right and prev_hand_count == 1):
                     main_control_hand.point_right_start_time = time.time()
             
-            # Increase Multiplier
+            # Decrease Multiplier
             elif (main_control_hand.is_pointing_left() and 
                   main_control_hand.type.lower() == "right" and hand_count == 1):
                 time_elapsed =  time.time() - main_control_hand.point_left_start_time
