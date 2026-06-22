@@ -48,6 +48,8 @@ curr_key_index = 0
 min_secs_for_key_press = 2
 min_secs_since_key_change = 2
 
+is_cropped = False
+
 class hand():
     def __init__(self, type):
         self.type = type
@@ -146,6 +148,16 @@ while True:
 
     success, img = cap.read()
     img = cv2.flip(img, 1)
+    full_img = img.copy()
+    if is_cropped:
+        img = img.copy()[roi_y:roi_y + roi_height, roi_x:roi_x + roi_width]
+        full_img_height, full_img_width, _ = full_img.shape
+        factor = 1
+        if roi_height >= roi_width:
+            factor = full_img_height / roi_height
+        else:
+            factor = full_img_width / roi_width
+        img = cv2.resize(img, (0,0), fx=factor, fy=factor)
     imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     results = hands.process(imgRGB)
 
@@ -284,6 +296,18 @@ while True:
                                 cursor_movement_multiplier)
                     pyautogui.move(x_offset, y_offset)
 
+            # Type Key
+            elif main_control_hand.is_index_at_bottom():
+                time_elapsed =  time.time() - main_control_hand.index_at_bottom_start_time
+                if (main_control_hand.prev_index_at_bottom and 
+                    time_elapsed > min_secs_for_key_press):
+                    key = keys[curr_key_index]
+                    pyttsx3.speak("Type - " + key)
+                    pyautogui.press(key)
+                    main_control_hand.index_at_bottom_start_time = time.time()
+                elif not main_control_hand.prev_index_at_bottom:
+                    main_control_hand.index_at_bottom_start_time = time.time()
+
             # Increase Multiplier
             elif (main_control_hand.is_pointing_right() and 
                   main_control_hand.type.lower() == "right" and hand_count == 1):
@@ -337,18 +361,6 @@ while True:
                     main_control_hand.point_left_start_time = time.time()
                 elif not (main_control_hand.prev_pointing_left and prev_hand_count == 1):
                     main_control_hand.point_left_start_time = time.time()
-
-            # Type Key
-            elif main_control_hand.is_index_at_bottom():
-                time_elapsed =  time.time() - main_control_hand.index_at_bottom_start_time
-                if (main_control_hand.prev_index_at_bottom and 
-                    time_elapsed > min_secs_for_key_press):
-                    key = keys[curr_key_index]
-                    pyttsx3.speak("Type - " + key)
-                    pyautogui.press(key)
-                    main_control_hand.index_at_bottom_start_time = time.time()
-                elif not main_control_hand.prev_index_at_bottom:
-                    main_control_hand.index_at_bottom_start_time = time.time()
 
             # Right Click
             elif (main_control_hand.is_pointing_right() and hand_count == 2):
@@ -411,6 +423,10 @@ while True:
     key = cv2.waitKey(1) & 0xFF
     if key == ord('q'):
         break
+    if key == ord("c"):
+        roi = cv2.selectROI("Hand Inputs", full_img)
+        roi_x, roi_y, roi_width, roi_height = roi
+        is_cropped = True
 
 cap.release()
 cv2.destroyAllWindows()
