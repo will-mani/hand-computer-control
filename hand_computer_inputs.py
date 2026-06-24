@@ -6,16 +6,6 @@ import pyttsx3
 
 pyautogui.FAILSAFE = False
 
-global cursor_movement_multiplier
-cursor_movement_multiplier = 1
-
-def update_multiplier(multipler):
-    global cursor_movement_multiplier
-    cursor_movement_multiplier = multipler
-
-multiplier_min = 1
-multiplier_max = 10
-
 mpHands = mp.solutions.hands
 hands = mpHands.Hands()
 mpDraw = mp.solutions.drawing_utils
@@ -24,6 +14,11 @@ cap = cv2.VideoCapture(0)
 
 prevTime = 0
 currTime = 0
+
+cursor_movement_multiplier = 1
+
+multiplier_min = 1
+multiplier_max = 10
 
 prev_hand_count = 0
 prev_main_control_hand = None
@@ -138,14 +133,6 @@ right_hand = hand("right")
 left_hand = hand("left")   
 
 while True:
-    try:
-        trackbar_pos = cv2.getTrackbarPos('Multiplier', 'Hand Inputs')
-    except:
-        cv2.namedWindow('Hand Inputs')
-        cv2.createTrackbar('Multiplier', 'Hand Inputs', cursor_movement_multiplier, 
-                           multiplier_max, update_multiplier)
-        cv2.setTrackbarMin('Multiplier', 'Hand Inputs', multiplier_min)
-
     success, img = cap.read()
     img = cv2.flip(img, 1)
     full_img = img.copy()
@@ -314,10 +301,10 @@ while True:
                 time_elapsed =  time.time() - main_control_hand.point_right_start_time
                 if (main_control_hand.prev_pointing_right and prev_hand_count == 1 and 
                     time_elapsed > min_secs_since_multiplier_change):
-                    new_multiplier = cursor_movement_multiplier + 1
-                    new_multiplier = max(min(new_multiplier, multiplier_max), multiplier_min)
-                    pyttsx3.speak("Multiplier " + str(new_multiplier))
-                    cv2.setTrackbarPos('Multiplier', 'Hand Inputs', new_multiplier)
+                    cursor_movement_multiplier += 1
+                    cursor_movement_multiplier = max(min(cursor_movement_multiplier, 
+                                                         multiplier_max), multiplier_min)
+                    pyttsx3.speak("Multiplier " + str(cursor_movement_multiplier))
                     main_control_hand.point_right_start_time = time.time()
                 elif not (main_control_hand.prev_pointing_right and prev_hand_count == 1):
                     main_control_hand.point_right_start_time = time.time()
@@ -328,10 +315,10 @@ while True:
                 time_elapsed =  time.time() - main_control_hand.point_left_start_time
                 if (main_control_hand.prev_pointing_left and prev_hand_count == 1 and
                     time_elapsed > min_secs_since_multiplier_change):
-                    new_multiplier = cursor_movement_multiplier - 1
-                    new_multiplier = min(max(new_multiplier, multiplier_min), multiplier_max)
-                    pyttsx3.speak("Multiplier " + str(new_multiplier))
-                    cv2.setTrackbarPos('Multiplier', 'Hand Inputs', new_multiplier)
+                    cursor_movement_multiplier -= 1
+                    cursor_movement_multiplier = min(max(cursor_movement_multiplier, 
+                                                         multiplier_min), multiplier_max)
+                    pyttsx3.speak("Multiplier " + str(cursor_movement_multiplier))
                     main_control_hand.point_left_start_time = time.time()
                 elif not (main_control_hand.prev_pointing_left and prev_hand_count == 1):
                     main_control_hand.point_left_start_time = time.time()
@@ -414,10 +401,12 @@ while True:
     fps = 1 / (currTime - prevTime)
     prevTime = currTime
 
-    cv2.putText(img, str(int(fps)) + ' fps', (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
+    cv2.putText(img, str(int(fps)) + ' FPS', (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
                 (255, 0, 0), 3)
+    cv2.putText(img, "Multiplier: " + str(cursor_movement_multiplier), (10, 120), 
+                cv2.FONT_HERSHEY_PLAIN, 3, (0, 160, 0), 3)
     key_text = keys[curr_key_index]
-    cv2.putText(img, key_text, (10, 150), cv2.FONT_HERSHEY_PLAIN, 5, (0, 0, 0), 5)
+    cv2.putText(img, "Key: " + key_text, (10, 170), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 3)
 
     cv2.imshow("Hand Inputs", img)
     key = cv2.waitKey(1) & 0xFF
